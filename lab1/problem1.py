@@ -31,7 +31,7 @@ class Maze:
     REWARD_MINOTAUR = -100
     REWARD_STEP = -1
     REWARD_GOAL = 0
-    def __init__(self, maze_mat, weights=None, random_rewards=False):
+    def __init__(self, maze_mat, weights=None, random_rewards=False, minotaur_to_stay = False):
         """ Constructor of the environment Maze.
         """
         self.maze                     = maze_mat # Matrix of the maze
@@ -42,7 +42,9 @@ class Maze:
         self.transition_probabilities = self.__transitions()
         self.rewards                  = self.__rewards(weights=weights,
                                                 random_rewards=random_rewards)
+        self.minotaur_to_stay         = minotaur_to_stay
         self.minotaur_pos = None # Position of the minotaur that needs to be sent here
+
     def __create_actions(self):
         ACTIONS = {0: (0,0),    #stay
                1: (0,-1),   #left (y_pos, x_pos) the inner list corresponds to one row in the maze
@@ -52,16 +54,40 @@ class Maze:
         return ACTIONS
     
     def __create_states(self):
+        # state is [(y_pos,x_pos),(ym_pos,xm_pos)] ym and xm represent the monster location
         states = dict()
         map = dict()
         s = 0
         for y_pos in range(self.maze.shape[0]):
             for x_pos in range(self.maze.shape[1]):
-                if self.maze[y_pos][x_pos] != 1:
-                    states[s] = (y_pos,x_pos)
-                    map[(y_pos,x_pos)] = s
-                    s+=1
+                for ym_pos in range(self.maze.shape[0]):
+                    for xm_pos in range(self.maze.shape[1]):
+                        if self.maze[y_pos][x_pos] != 1:
+                            states[s] = [(y_pos,x_pos),(ym_pos,xm_pos)]
+                            map[[(y_pos,x_pos),(ym_pos,xm_pos)]] = s
+                            s+=1
         return states, map
+
+    def getMinotaur_actions(self, state):
+        # Get possible minotaur actions.
+        currentM_row = self.states[state][1][0]
+        currentM_col = self.states[state][1][1]
+        #check if minotaur is on the border of the maze
+        border_of_maze =  (currentM_row == 0) or (currentM_row== self.maze.shape[0]-1) or \
+                                (currentM_col == 0) or (currentM_col== self.maze.shape[1]-1)
+        #collect minotaur possible actions and store them in m_possibleActions.
+        m_possibleActions = []
+        if border_of_maze:
+            for m_action in list(self.actions.keys())[1:]:
+                row_m = self.states[state][1][0] + self.actions[m_action][0]
+                col_m = self.states[state][1][1] + self.actions[m_action][1]
+                outside_of_maze =  (row_m == -1) or (row_m == self.maze.shape[0]) or \
+                                    (col_m == -1) or (col_m == self.maze.shape[1])
+                if not outside_of_maze:
+                    m_possibleActions.append(m_action)
+        else:
+            m_possibleActions = list(self.actions.keys())[1:]
+        return m_possibleActions
     
     def __move(self, state, action):
         """ Makes a step in the maze, given a current position and an action.
@@ -70,17 +96,24 @@ class Maze:
             :return tuple next_cell: Position (x,y) on the maze that agent transitions to.
         """
         # Compute the future position given current (state, action)
-        new_x_pos = self.states[state][0] + self.actions[action][0]
-        new_y_pos = self.states[state][1] + self.actions[action][1]
+        new_y_pos= self.states[state][0][0] + self.actions[action][0]
+        new_x_pos = self.states[state][0][1] + self.actions[action][1]
         # Is the future position an impossible one ?
         hitting_maze_walls =  (new_y_pos == -1) or (new_y_pos == self.maze.shape[0]) or \
                               (new_x_pos == -1) or (new_x_pos == self.maze.shape[1]) or \
                               (self.maze[new_y_pos][new_x_pos] == 1)
         # Based on the impossiblity check return the next state.
+
+        # Get monster action
+        m_possibleActions = self.getMinotaur_actions(state)
+        minotaur_action = np.random.choice(m_possibleActions)
+        new_ym_pos = self.states[state][1][0] + self.actions[minotaur_action][0];
+        new_xm_pos = self.states[state][1][1]  + self.actions[minotaur_action][1];
+
         if hitting_maze_walls:
-            return state    # Return current state/position
+            return self.map[[(self.states[state][0][0], self.states[state][0][1]),(new_ym_pos,new_xm_pos)]]    # Return current state/position
         else:
-            return self.map[(new_y_pos, new_x_pos)] #Return the next state at next step
+            return self.map[[(new_y_pos, new_x_pos),(new_ym_pos,new_xm_pos)]] #Return the next state at next step
         
     def __transitions(self):
         """ Computes the transition probabilities for every state action pair.
