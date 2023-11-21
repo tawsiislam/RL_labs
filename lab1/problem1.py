@@ -32,10 +32,11 @@ class Maze:
     REWARD_STEP = -1
     REWARD_GOAL = 0
 
-    def __init__(self, maze_mat, weights=None, random_rewards=False):
+    def __init__(self, maze_mat, weights=None, random_rewards=False, allow_stay=True):
         """ Constructor of the environment Maze.
         """
         self.maze                     = maze_mat # Matrix of the maze
+        self.stay                     = allow_stay
         self.actions                  = self.__create_actions() #Callable function to get action
         self.states, self.map         = self.__create_states() #Callable function to get state
         self.n_actions                = len(self.actions)
@@ -43,6 +44,7 @@ class Maze:
         self.transition_probabilities = self.__transitions()
         self.rewards                  = self.__rewards(weights=weights,
                                                 random_rewards=random_rewards)
+        
         self.minotaur_pos = None # Position of the minotaur that needs to be sent here
 
     def __create_actions(self):
@@ -78,14 +80,14 @@ class Maze:
         #collect minotaur possible actions and store them in m_possibleActions.
         m_possibleActions = []
         if border_of_maze:
-            if False:
+            if self.stay:
                 for m_action in list(self.actions.keys()):
                     row_m = self.states[state][1][0] + self.actions[m_action][0]
                     col_m = self.states[state][1][1] + self.actions[m_action][1]
                     outside_of_maze =  (row_m == -1) or (row_m == self.maze.shape[0]) or \
                                         (col_m == -1) or (col_m == self.maze.shape[1])
-                if not outside_of_maze:
-                    m_possibleActions.append(m_action)
+                    if not outside_of_maze:
+                        m_possibleActions.append(m_action)
             else:
                 for m_action in list(self.actions.keys())[1:]:
                     row_m = self.states[state][1][0] + self.actions[m_action][0]
@@ -214,6 +216,9 @@ class Maze:
                 # Update time and state for next iteration
                 t +=1
                 s = next_s
+                # When get eaten, stop immediately
+                if self.states[s][0] == self.states[s][1]:
+                    break
         if method == 'ValIter':
             # Initialize current state, next state and time
             t = 1
@@ -229,6 +234,9 @@ class Maze:
             while s != next_s:
                 # Update state
                 s = next_s
+                # When get eaten, stop immediately
+                if self.states[s][0] == self.states[s][1]:
+                    break
                 # Move to next state given the policy and the current state
                 next_s = self.__move(s,policy[s])
                 # Add the position in the maze corresponding to the next state
@@ -426,16 +434,18 @@ def animate_solution(maze, path):
     for i in range(len(path)):
         grid.get_celld()[(path[i-1][0])].set_facecolor(LIGHT_ORANGE)
         grid.get_celld()[(path[i][0])].get_text().set_text('Player')
+        grid.get_celld()[(path[i][1])].set_facecolor(LIGHT_PURPLE)
+        grid.get_celld()[(path[i][1])].get_text().set_text('Monster')
         if i > 0:
             if path[i][0] == path[i-1][0]:
                 grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_GREEN)
                 grid.get_celld()[(path[i][0])].get_text().set_text('Player is out')
             else:
+                grid.get_celld()[(path[i-1][1])].set_facecolor(col_map[maze[path[i-1][1]]])
+                grid.get_celld()[(path[i-1][1])].get_text().set_text('')
                 grid.get_celld()[(path[i-1][0])].set_facecolor(col_map[maze[path[i-1][0]]])
                 grid.get_celld()[(path[i-1][0])].get_text().set_text('')
-        grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_ORANGE)
-        grid.get_celld()[(path[i][1])].set_facecolor(LIGHT_PURPLE)
-        grid.get_celld()[(path[i][1])].get_text().set_text('Monster')
+
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
