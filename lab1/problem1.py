@@ -6,6 +6,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import random
 from IPython import display
 
 # Implemented methods
@@ -222,6 +223,7 @@ class Maze:
         if method == 'ValIter':
             # Initialize current state, next state and time
             t = 1
+            gamma = 29/30
             s = self.map[start]
             # Add the starting position in the maze to the path
             path.append(start)
@@ -230,18 +232,18 @@ class Maze:
             # Add the position in the maze corresponding to the next state
             # to the path
             path.append(self.states[next_s])
+            arrive_goal = False
             # Loop while state is not the goal state
-            while s != next_s:
+            while self.states[s][0] != self.states[s][1] and arrive_goal == False and random.random() < gamma:
                 # Update state
                 s = next_s
-                # When get eaten, stop immediately
-                if self.states[s][0] == self.states[s][1]:
-                    break
                 # Move to next state given the policy and the current state
                 next_s = self.__move(s,policy[s])
                 # Add the position in the maze corresponding to the next state
                 # to the path
                 path.append(self.states[next_s])
+                if self.states[s][0] == (6,5): 
+                    arrive_goal = True
                 # Update time and state for next iteration
                 t +=1
         return path
@@ -432,7 +434,7 @@ def animate_solution(maze, path):
 
     # Update the color at each frame
     for i in range(len(path)):
-        grid.get_celld()[(path[i-1][0])].set_facecolor(LIGHT_ORANGE)
+        grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_ORANGE)
         grid.get_celld()[(path[i][0])].get_text().set_text('Player')
         grid.get_celld()[(path[i][1])].set_facecolor(LIGHT_PURPLE)
         grid.get_celld()[(path[i][1])].get_text().set_text('Monster')
@@ -441,10 +443,10 @@ def animate_solution(maze, path):
                 grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_GREEN)
                 grid.get_celld()[(path[i][0])].get_text().set_text('Player is out')
             else:
-                grid.get_celld()[(path[i-1][1])].set_facecolor(col_map[maze[path[i-1][1]]])
-                grid.get_celld()[(path[i-1][1])].get_text().set_text('')
                 grid.get_celld()[(path[i-1][0])].set_facecolor(col_map[maze[path[i-1][0]]])
                 grid.get_celld()[(path[i-1][0])].get_text().set_text('')
+            grid.get_celld()[(path[i-1][1])].set_facecolor(col_map[maze[path[i-1][1]]])
+            grid.get_celld()[(path[i-1][1])].get_text().set_text('')
 
         display.display(fig)
         display.clear_output(wait=True)
