@@ -375,7 +375,51 @@ def value_iteration(env, gamma, epsilon):
     # Return the obtained policy
     return V, policy
 
-def draw_maze(maze, player_pos, minotaur_pos):
+def Q_learning(env,Q_init,start,no_episodes,t_horizon,alpha,gamma,epsilon):
+    r         = env.rewards
+    n_states  = env.n_states
+    n_actions = env.n_actions
+    terminal = False
+    
+    Q = Q_init
+    n_vists = np.zeros((n_states, n_actions))
+    value_list = []
+    for episode in range(0,no_episodes):
+        s_initial = env.map[start]
+        s = s_initial
+        t=0
+        terminal = False
+        while(not terminal):
+            if np.random.uniform(0,1) < epsilon:
+                # possible_move = False
+                actions_list = [0,1,2,3,4]
+                # while(not possible_move):
+                a = np.random.choice(actions_list)
+                #     s_next = env._Maze_bonus__move(s,a,np.random.choice(env.getMinotaur_actions(s)))
+                #     # Don't choose impossible action, but staying at same state is acceptable 
+                #     if env.states[s_next][0] == env.states[s][0] and a != 0:
+                #         actions_list.remove(a)
+                #     else:
+                #         possible_move = True
+            else:
+                a = np.argmax(Q[s,:])
+            n_vists[s,a] += 1
+            step = 1/(n_vists[s,a] ** alpha)
+            s_next = env._Maze_bonus__move(s,a,np.random.choice(env.getMinotaur_actions(s)))
+            reward = r[s,a]
+            Q[s,a] += step * (reward + gamma * np.max(Q[s_next,:]) - Q[s,a])
+            t += 1
+            s = s_next
+            if env.states[s_next][0] == env.states[s_next][1] or \
+                (env.maze[env.states[s][0]] == 2 and env.states[s][2] == 1)\
+                or t==t_horizon:
+                terminal = True
+        value_list.append(np.max(Q, 1)[s_initial])
+    
+    policy = np.argmax(Q,1)
+    return Q, policy, value_list
+
+def draw_maze(maze, player_pos, minotaur_pos, key_pos = 0):
 
     # Map a color to each cell in the maze
     col_map = {0: WHITE, 1: BLACK, 2: LIGHT_GREEN, -6: LIGHT_RED, -1: LIGHT_RED}
@@ -411,6 +455,9 @@ def draw_maze(maze, player_pos, minotaur_pos):
     grid.get_celld()[player_pos].get_text().set_text('Player')
     grid.get_celld()[minotaur_pos].set_facecolor(BROWN)
     grid.get_celld()[minotaur_pos].get_text().set_text('Minotaur')
+    if key_pos != 0 and isinstance(key_pos, tuple):
+        grid.get_celld()[key_pos].set_facecolor(LIGHT_RED)
+        grid.get_celld()[key_pos].get_text().set_text("key")
     tc = grid.properties()['children']
     for cell in tc:
         cell.set_height(1.0/rows)

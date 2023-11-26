@@ -443,7 +443,10 @@ def animate_solution(maze, path):
         grid.get_celld()[(path[i][1])].get_text().set_text(monster_text + '\nMonster' + str(i))
 
         if i > 0:
-            if path[i][0] == path[i-1][0]:
+            if path[i][0] == path[i][1]:
+                grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_RED)
+                grid.get_celld()[(path[i][0])].get_text().set_text('Player is dead')
+            elif maze[path[i][0]] == 2:
                 grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_GREEN)
                 grid.get_celld()[(path[i][0])].get_text().set_text('Player is out')
             else:
