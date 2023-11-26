@@ -431,22 +431,24 @@ def animate_solution(maze, path):
         cell.set_height(1.0/rows)
         cell.set_width(1.0/cols)
 
-
+    history = dict()
     # Update the color at each frame
     for i in range(len(path)):
         grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_ORANGE)
-        grid.get_celld()[(path[i][0])].get_text().set_text('Player')
+        player_text = grid.get_celld()[(path[i][0])].get_text().get_text()
+        grid.get_celld()[(path[i][0])].get_text().set_text(player_text + '\nPlayer' + str(i))
+
         grid.get_celld()[(path[i][1])].set_facecolor(LIGHT_PURPLE)
-        grid.get_celld()[(path[i][1])].get_text().set_text('Monster')
+        monster_text = grid.get_celld()[(path[i][1])].get_text().get_text()
+        grid.get_celld()[(path[i][1])].get_text().set_text(monster_text + '\nMonster' + str(i))
+
         if i > 0:
             if path[i][0] == path[i-1][0]:
                 grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_GREEN)
                 grid.get_celld()[(path[i][0])].get_text().set_text('Player is out')
             else:
                 grid.get_celld()[(path[i-1][0])].set_facecolor(col_map[maze[path[i-1][0]]])
-                grid.get_celld()[(path[i-1][0])].get_text().set_text('')
             grid.get_celld()[(path[i-1][1])].set_facecolor(col_map[maze[path[i-1][1]]])
-            grid.get_celld()[(path[i-1][1])].get_text().set_text('')
 
         display.display(fig)
         display.clear_output(wait=True)
