@@ -121,11 +121,22 @@ class Maze_bonus:
         # Get monster action
         if m_action:
             minotaur_action = m_action
-        else:
+            new_ym_pos = self.states[state][1][0] + self.actions[minotaur_action][0]
+            new_xm_pos = self.states[state][1][1]  + self.actions[minotaur_action][1]
+        elif random.random() > 0.65 and self.states[state][1] !=self.states[state][0]: # move towards player
+            x_diff = self.states[state][1][1] - self.states[state][0][1]
+            y_diff = self.states[state][1][0] - self.states[state][0][0]
+            if abs(x_diff) > abs(y_diff):
+                new_xm_pos = self.states[state][1][1]  - x_diff/abs(x_diff)
+                new_ym_pos = self.states[state][1][0]
+            else:
+                new_ym_pos = self.states[state][1][0] - y_diff/abs(y_diff)
+                new_xm_pos = self.states[state][1][1]
+        else: # move randomlly
             m_possibleActions = self.getMinotaur_actions(state)
             minotaur_action = np.random.choice(m_possibleActions)
-        new_ym_pos = self.states[state][1][0] + self.actions[minotaur_action][0]
-        new_xm_pos = self.states[state][1][1]  + self.actions[minotaur_action][1]
+            new_ym_pos = self.states[state][1][0] + self.actions[minotaur_action][0]
+            new_xm_pos = self.states[state][1][1]  + self.actions[minotaur_action][1]
 
         #key info
         key_status=self.states[state][2]
