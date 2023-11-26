@@ -354,38 +354,6 @@ def value_iteration(env, gamma, epsilon):
     # Return the obtained policy
     return V, policy
 
-def Q_learning(env,start,no_episodes,t_horizon,alpha,gamma,epsilon):
-    r         = env.rewards
-    n_states  = env.n_states
-    n_actions = env.n_actions
-    terminal = False
-    
-    Q = np.zeros((n_states, n_actions))
-    n_vists = np.zeros((n_states, n_actions))
-    value_list = []
-    for episode in range(0,no_episodes):
-        s_initial = env.map[start]
-        s = s_initial
-        t=0
-        terminal = False
-        while(not terminal):
-            if np.random.uniform(0,1) < epsilon:
-                a = np.random.choice(np.arange(5))
-            else:
-                a = np.argmax(Q[s,:])
-            n_vists[s,a] += 1
-            step = 1/(n_vists[s,a] ** alpha)
-            s_next = env._Maze__move(s,a,np.random.choice(env.getMinotaur_actions(s)))
-            reward = r[s,a]
-            Q[s,a] += step * (reward + gamma * np.max(Q[s_next,:]) - Q[s,a])
-            t += 1
-            s = s_next
-            if env.states[s_next][0] == env.states[s_next][1] or env.maze[env.states[s][0]] == 2 or t==t_horizon:
-                terminal = True
-        value_list.append(np.max(Q, 1)[s_initial])
-    
-    policy = np.argmax(Q,1)
-    return Q, policy, value_list
 def draw_maze(maze, player_pos, minotaur_pos):
 
     # Map a color to each cell in the maze
