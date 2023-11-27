@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import random
+import tqdm
 from IPython import display
 
 # Implemented methods
@@ -214,7 +215,7 @@ class Maze_bonus:
                      rewards[s,a] = weights[i][j]
         
         return rewards
-    
+
     def simulate(self, start, policy, method):
         if method not in methods:
             error = 'ERROR: the argument method must be in {}'.format(methods);
@@ -419,6 +420,39 @@ def Q_learning(env,Q_init,start,no_episodes,t_horizon,alpha,gamma,epsilon):
     policy = np.argmax(Q,1)
     return Q, policy, value_list
 
+def SARSA(env, Q_init, start, no_episodes, t_horizon, alpha, gamma, epsilon):
+    r = env.rewards
+    n_states = env.n_states
+    n_actions = env.n_actions
+    terminal = False
+
+    Q = Q_init
+    n_visits = np.zeros((n_states, n_actions))
+    value_list = []
+    for episode in range(0, no_episodes):
+        s_initial = env.map[start]
+        s = s_initial
+        t = 0
+        terminal = False
+        a = np.argmax(Q[s, :]) if np.random.uniform(0, 1) >= epsilon else np.random.choice([0, 1, 2, 3, 4])
+        while not terminal:
+            n_visits[s, a] += 1
+            step = 1 / (n_visits[s, a] ** alpha)
+            s_next = env._Maze_bonus__move(s, a, np.random.choice(env.getMinotaur_actions(s)))
+            reward = r[s, a]
+            a_next = np.argmax(Q[s_next, :]) if np.random.uniform(0, 1) >= epsilon else np.random.choice([0, 1, 2, 3, 4])
+            Q[s, a] += step * (reward + gamma * Q[s_next, a_next] - Q[s, a])
+            t += 1
+            s, a = s_next, a_next
+            if env.states[s_next][0] == env.states[s_next][1] or \
+                (env.maze[env.states[s][0]] == 2 and env.states[s][2] == 1) \
+                or t == t_horizon:
+                terminal = True
+        value_list.append(np.max(Q, 1)[s_initial])
+
+    policy = np.argmax(Q, 1)
+    return Q, policy, value_list
+
 def draw_maze(maze, player_pos, minotaur_pos, key_pos = 0):
 
     # Map a color to each cell in the maze
@@ -517,7 +551,7 @@ def animate_solution(maze, path):
         grid.get_celld()[(path[i][1])].get_text().set_text(monster_text + '\nMonster' + str(i))
 
         if i > 0:
-            if path[i][0] == path[i-1][0]:
+            if path[i][0] == (6,5):
                 grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_GREEN)
                 grid.get_celld()[(path[i][0])].get_text().set_text('Player is out')
             else:
