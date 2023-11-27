@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import random
-import tqdm
 from IPython import display
 
 # Implemented methods
@@ -173,21 +172,20 @@ class Maze_bonus:
             for s in range(self.n_states):
                 for a in range(self.n_actions):
                     next_s = self.__move(s,a)
-                    get_eaten = False
+                    """get_eaten = False
                     m_possibleActions = self.getMinotaur_actions(s)
                     for m_action in m_possibleActions:
                         next_Ms = self.__move(s, a, m_action)
                         if self.states[next_Ms][0] == self.states[next_Ms][1]:
-                            get_eaten = True
+                            get_eaten = True"""
                     # Reward for hitting a wall, move() returns current state instead of new
                     
                     if self.states[s][0] == self.states[next_s][0] and a != 0: #if player collision happened and we chose to move a!=0 (Stay = 0)
                         rewards[s,a] = self.REWARD_IMPOSSIBLE
                     # Reward for reaching the exit, current is returned because element in matrix was not 0
-                    elif get_eaten and self.maze[self.states[s][0][0],self.states[s][0][1]] != 2:
-                        rewards[s,a] = self.REWARD_MINOTAUR/len(m_possibleActions)
-                    elif self.states[s][0] == self.states[next_s][0] and \
-                        self.maze[self.states[next_s][0][0],self.states[next_s][0][1]]  == 2 and \
+                    elif self.states[s][0] == self.states[s][0][1] and self.maze[self.states[s][0][0],self.states[s][0][1]] != 2:
+                        rewards[s,a] = self.REWARD_MINOTAUR
+                    elif self.maze[self.states[next_s][0][0],self.states[next_s][0][1]]  == 2 and \
                             self.states[s][2] == 1:
                         rewards[s,a] = self.REWARD_GOAL
                     # Reward for taking a step to an empty cell that is not the exit
@@ -215,7 +213,7 @@ class Maze_bonus:
                      rewards[s,a] = weights[i][j]
         
         return rewards
-
+    
     def simulate(self, start, policy, method):
         if method not in methods:
             error = 'ERROR: the argument method must be in {}'.format(methods);
@@ -406,7 +404,7 @@ def Q_learning(env,Q_init,start,no_episodes,t_horizon,alpha,gamma,epsilon):
                 a = np.argmax(Q[s,:])
             n_vists[s,a] += 1
             step = 1/(n_vists[s,a] ** alpha)
-            s_next = env._Maze_bonus__move(s,a,np.random.choice(env.getMinotaur_actions(s)))
+            s_next = env._Maze_bonus__move(s,a)
             reward = r[s,a]
             Q[s,a] += step * (reward + gamma * np.max(Q[s_next,:]) - Q[s,a])
             t += 1
@@ -438,7 +436,7 @@ def SARSA(env, Q_init, start, no_episodes, t_horizon, alpha, gamma, epsilon):
         while not terminal:
             n_visits[s, a] += 1
             step = 1 / (n_visits[s, a] ** alpha)
-            s_next = env._Maze_bonus__move(s, a, np.random.choice(env.getMinotaur_actions(s)))
+            s_next = env._Maze_bonus__move(s, a)
             reward = r[s, a]
             a_next = np.argmax(Q[s_next, :]) if np.random.uniform(0, 1) >= epsilon else np.random.choice([0, 1, 2, 3, 4])
             Q[s, a] += step * (reward + gamma * Q[s_next, a_next] - Q[s, a])
@@ -452,6 +450,7 @@ def SARSA(env, Q_init, start, no_episodes, t_horizon, alpha, gamma, epsilon):
 
     policy = np.argmax(Q, 1)
     return Q, policy, value_list
+
 
 def draw_maze(maze, player_pos, minotaur_pos, key_pos = 0):
 
@@ -536,27 +535,25 @@ def animate_solution(maze, path):
 
     # Update the color at each frame
     for i in range(len(path)):
-        if path[i][2] == 0:
-            grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_ORANGE)
-            player_text = grid.get_celld()[(path[i][0])].get_text().get_text()
-            grid.get_celld()[(path[i][0])].get_text().set_text(player_text + '\nPlayer' + str(i))
-        else:
-            grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_RED)
-            player_text = grid.get_celld()[(path[i][0])].get_text().get_text()
-            grid.get_celld()[(path[i][0])].get_text().set_text(player_text + '\nPlayer' + str(i)+"key")
-        
+        grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_ORANGE)
+        player_text = grid.get_celld()[(path[i][0])].get_text().get_text()
+        grid.get_celld()[(path[i][0])].get_text().set_text(player_text + '\nPlayer' + str(i))
 
         grid.get_celld()[(path[i][1])].set_facecolor(LIGHT_PURPLE)
         monster_text = grid.get_celld()[(path[i][1])].get_text().get_text()
         grid.get_celld()[(path[i][1])].get_text().set_text(monster_text + '\nMonster' + str(i))
 
         if i > 0:
-            if path[i][0] == (6,5):
+            if path[i][0] == path[i][1]:
+                grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_RED)
+                grid.get_celld()[(path[i][0])].get_text().set_text('Player is dead')
+            elif maze[path[i][0]] == 2:
                 grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_GREEN)
                 grid.get_celld()[(path[i][0])].get_text().set_text('Player is out')
             else:
                 grid.get_celld()[(path[i-1][0])].set_facecolor(col_map[maze[path[i-1][0]]])
             grid.get_celld()[(path[i-1][1])].set_facecolor(col_map[maze[path[i-1][1]]])
+
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
