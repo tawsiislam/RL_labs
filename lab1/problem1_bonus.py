@@ -121,11 +121,22 @@ class Maze_bonus:
         # Get monster action
         if m_action:
             minotaur_action = m_action
-        else:
+            new_ym_pos = self.states[state][1][0] + self.actions[minotaur_action][0]
+            new_xm_pos = self.states[state][1][1]  + self.actions[minotaur_action][1]
+        elif random.random() > 0.65 and self.states[state][1] !=self.states[state][0]: # move towards player
+            x_diff = self.states[state][1][1] - self.states[state][0][1]
+            y_diff = self.states[state][1][0] - self.states[state][0][0]
+            if abs(x_diff) > abs(y_diff):
+                new_xm_pos = self.states[state][1][1]  - x_diff/abs(x_diff)
+                new_ym_pos = self.states[state][1][0]
+            else:
+                new_ym_pos = self.states[state][1][0] - y_diff/abs(y_diff)
+                new_xm_pos = self.states[state][1][1]
+        else: # move randomlly
             m_possibleActions = self.getMinotaur_actions(state)
             minotaur_action = np.random.choice(m_possibleActions)
-        new_ym_pos = self.states[state][1][0] + self.actions[minotaur_action][0]
-        new_xm_pos = self.states[state][1][1]  + self.actions[minotaur_action][1]
+            new_ym_pos = self.states[state][1][0] + self.actions[minotaur_action][0]
+            new_xm_pos = self.states[state][1][1]  + self.actions[minotaur_action][1]
 
         #key info
         key_status=self.states[state][2]
@@ -380,21 +391,21 @@ def Q_learning(env,Q_init,start,no_episodes,t_horizon,alpha,gamma,epsilon):
         terminal = False
         while(not terminal):
             if np.random.uniform(0,1) < epsilon:
-                # possible_move = False
+                possible_move = False
                 actions_list = [0,1,2,3,4]
-                # while(not possible_move):
-                a = np.random.choice(actions_list)
-                #     s_next = env._Maze_bonus__move(s,a,np.random.choice(env.getMinotaur_actions(s)))
-                #     # Don't choose impossible action, but staying at same state is acceptable 
-                #     if env.states[s_next][0] == env.states[s][0] and a != 0:
-                #         actions_list.remove(a)
-                #     else:
-                #         possible_move = True
+                while(not possible_move):
+                    a = np.random.choice(actions_list)
+                    s_next = env._Maze_bonus__move(s,a,m_action=False)
+                    # Don't choose impossible action, but staying at same state is acceptable 
+                    if env.states[s_next][0] == env.states[s][0] and a != 0:
+                        actions_list.remove(a)
+                    else:
+                        possible_move = True
             else:
                 a = np.argmax(Q[s,:])
             n_vists[s,a] += 1
             step = 1/(n_vists[s,a] ** alpha)
-            s_next = env._Maze_bonus__move(s,a,np.random.choice(env.getMinotaur_actions(s)))
+            s_next = env._Maze_bonus__move(s,a,m_action=False)
             reward = r[s,a]
             Q[s,a] += step * (reward + gamma * np.max(Q[s_next,:]) - Q[s,a])
             t += 1
@@ -406,6 +417,39 @@ def Q_learning(env,Q_init,start,no_episodes,t_horizon,alpha,gamma,epsilon):
         value_list.append(np.max(Q, 1)[s_initial])
     
     policy = np.argmax(Q,1)
+    return Q, policy, value_list
+
+def SARSA(env, Q_init, start, no_episodes, t_horizon, alpha, gamma, epsilon):
+    r = env.rewards
+    n_states = env.n_states
+    n_actions = env.n_actions
+    terminal = False
+
+    Q = Q_init
+    n_visits = np.zeros((n_states, n_actions))
+    value_list = []
+    for episode in range(0, no_episodes):
+        s_initial = env.map[start]
+        s = s_initial
+        t = 0
+        terminal = False
+        a = np.argmax(Q[s, :]) if np.random.uniform(0, 1) >= epsilon else np.random.choice([0, 1, 2, 3, 4])
+        while not terminal:
+            n_visits[s, a] += 1
+            step = 1 / (n_visits[s, a] ** alpha)
+            s_next = env._Maze_bonus__move(s, a, m_action=False)
+            reward = r[s, a]
+            a_next = np.argmax(Q[s_next, :]) if np.random.uniform(0, 1) >= epsilon else np.random.choice([0, 1, 2, 3, 4])
+            Q[s, a] += step * (reward + gamma * Q[s_next, a_next] - Q[s, a])
+            t += 1
+            s, a = s_next, a_next
+            if env.states[s_next][0] == env.states[s_next][1] or \
+                (env.maze[env.states[s][0]] == 2 and env.states[s][2] == 1) \
+                or t == t_horizon:
+                terminal = True
+        value_list.append(np.max(Q, 1)[s_initial])
+
+    policy = np.argmax(Q, 1)
     return Q, policy, value_list
 
 def draw_maze(maze, player_pos, minotaur_pos, key_pos = 0):
@@ -506,7 +550,7 @@ def animate_solution(maze, path):
         grid.get_celld()[(path[i][1])].get_text().set_text(monster_text + '\nMonster' + str(i))
 
         if i > 0:
-            if path[i][0] == path[i-1][0]:
+            if maze[path[i][0]] == 2 and path[i][2] == 1:
                 grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_GREEN)
                 grid.get_celld()[(path[i][0])].get_text().set_text('Player is out')
             else:
