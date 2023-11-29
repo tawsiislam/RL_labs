@@ -516,6 +516,42 @@ def SARSA(env, Q_init, start, no_episodes, t_horizon, alpha, gamma, epsilon):
     return Q, policy, value_list
 
 
+def SARSA_with_decay(env, Q_init, start, no_episodes, t_horizon, alpha, gamma, delta):
+    r = env.rewards
+    n_states = env.n_states
+    n_actions = env.n_actions
+    terminal = False
+
+    Q = Q_init
+    n_visits = np.zeros((n_states, n_actions))
+    value_list = []
+
+    for episode in tqdm(range(1, no_episodes + 1), desc='Training', unit='episode'):
+        epsilon = 1 / (episode ** delta)
+        s_initial = env.map[start]
+        s = s_initial
+        t = 0
+        terminal = False
+        a = np.argmax(Q[s, :]) if np.random.uniform(0, 1) >= epsilon else np.random.choice([0, 1, 2, 3, 4])
+
+        while not terminal:
+            n_visits[s, a] += 1
+            step = 1 / (n_visits[s, a] ** alpha)
+            s_next = env._Maze_bonus__move(s, a)
+            reward = r[s, a]
+            a_next = np.argmax(Q[s_next, :]) if np.random.uniform(0, 1) >= epsilon else np.random.choice([0, 1, 2, 3, 4])
+            Q[s, a] += step * (reward + gamma * Q[s_next, a_next] - Q[s, a])
+            t += 1
+            s, a = s_next, a_next
+
+            if (t == t_horizon) or (env.maze[env.states[s][0]] == 2 and env.states[s][2] == 1):
+                terminal = True
+
+        value_list.append(np.max(Q, 1)[s_initial])
+
+    policy = np.argmax(Q, 1)
+    return Q, policy, value_list
+
 def draw_maze(maze, player_pos, minotaur_pos, key_pos = 0):
 
     # Map a color to each cell in the maze
@@ -599,6 +635,9 @@ def animate_solution(maze, path):
 
     # Update the color at each frame
     for i in range(len(path)):
+        if i>0:
+            grid.get_celld()[(path[i-1][0])].set_facecolor(col_map[maze[path[i-1][0]]])
+            grid.get_celld()[(path[i-1][1])].set_facecolor(col_map[maze[path[i-1][1]]])
         if path[i][2] == 0:
             grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_RED)
             player_text = grid.get_celld()[(path[i][0])].get_text().get_text()
@@ -619,9 +658,7 @@ def animate_solution(maze, path):
             elif maze[path[i][0]] == 2:
                 grid.get_celld()[(path[i][0])].set_facecolor(LIGHT_GREEN)
                 grid.get_celld()[(path[i][0])].get_text().set_text('Player is out')
-            else:
-                grid.get_celld()[(path[i-1][0])].set_facecolor(col_map[maze[path[i-1][0]]])
-            grid.get_celld()[(path[i-1][1])].set_facecolor(col_map[maze[path[i-1][1]]])
+            
 
         display.display(fig)
         display.clear_output(wait=True)
