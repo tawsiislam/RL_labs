@@ -395,6 +395,49 @@ def draw_maze(maze, player_pos, minotaur_pos):
         cell.set_height(1.0/rows)
         cell.set_width(1.0/cols)
 
+def draw_policy(maze, env, minotaur_pos, policy, t):
+    action_dict = {0: "S",    #stay
+               1: "L",   #left (y_pos, x_pos) the inner list corresponds to one row in the maze
+               2: "U", #up (we go up in matrix thus smaller index)
+               3: "R",  #right
+               4: "D"} 
+    
+    # Map a color to each cell in the maze
+    col_map = {0: WHITE, 1: BLACK, 2: LIGHT_GREEN, -6: LIGHT_RED, -1: LIGHT_RED}
+
+    # Give a color to each cell
+    rows,cols    = maze.shape
+    colored_maze = [[col_map[maze[j,i]] for i in range(cols)] for j in range(rows)]
+
+    # Create figure of the size of the maze
+    fig = plt.figure(1, figsize=(cols,rows))
+    # Remove the axis ticks and add title title
+    ax = plt.gca()
+    ax.set_title('Policy map at t='+str(t))
+    ax.set_xticks([])
+    ax.set_yticks([])
+    # Create a table to color
+    grid = plt.table(cellText=None,
+                            cellColours=colored_maze,
+                            cellLoc='center',
+                            loc=(0,0),
+                            edges='closed')
+    # Modify the hight and width of the cells in the table
+    tc = grid.properties()['children']
+    for cell in tc:
+        cell.set_height(1.0/rows)
+        cell.set_width(1.0/cols)
+    
+    for state_id, state in env.states.items():
+        if state[1] == minotaur_pos:
+            action_text = action_dict.get(policy[state_id,t])
+            grid.get_celld()[state[0]].get_text().set_text(action_text)
+            
+            
+    grid.get_celld()[minotaur_pos].set_facecolor(LIGHT_PURPLE)
+    grid.get_celld()[minotaur_pos].get_text().set_text('Minotaur')
+    
+
 def animate_solution(maze, path):
 
     # Map a color to each cell in the maze
@@ -441,6 +484,7 @@ def animate_solution(maze, path):
         grid.get_celld()[(path[i][1])].set_facecolor(LIGHT_PURPLE)
         monster_text = grid.get_celld()[(path[i][1])].get_text().get_text()
         grid.get_celld()[(path[i][1])].get_text().set_text(monster_text + '\nMonster' + str(i))
+        grid.get_celld()[(path[i][1])].get_text().set_color('black')
 
         if i > 0:
             if path[i][0] == path[i][1]:
@@ -452,6 +496,8 @@ def animate_solution(maze, path):
             else:
                 grid.get_celld()[(path[i-1][0])].set_facecolor(col_map[maze[path[i-1][0]]])
             grid.get_celld()[(path[i-1][1])].set_facecolor(col_map[maze[path[i-1][1]]])
+            if (maze[path[i-1][1]] == 1):
+                grid.get_celld()[(path[i-1][1])].get_text().set_color('white')
 
         display.display(fig)
         display.clear_output(wait=True)
