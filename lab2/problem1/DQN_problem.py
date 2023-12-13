@@ -1,118 +1,101 @@
-# Copyright [2020] [KTH Royal Institute of Technology] Licensed under the
-# Educational Community License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may
-# obtain a copy of the License at http://www.osedu.org/licenses/ECL-2.0
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS"
-# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# or implied. See the License for the specific language governing
-# permissions and limitations under the License.
-#
-# Course: EL2805 - Reinforcement Learning - Lab 2 Problem 1
-# Code author: [Alessio Russo - alessior@kth.se]
-# Last update: 6th October 2020, by alessior@kth.se
-#
-
-# Load packages
 import numpy as np
 import gym
 import torch
+import torch.optim as optim
+import torch.nn as nn
 import matplotlib.pyplot as plt
 from tqdm import trange
-from DQN_agent import RandomAgent
+from DQN_agent import*
 
-def running_average(x, N):
-    ''' Function used to compute the running average
-        of the last N elements of a vector x
-    '''
-    if len(x) >= N:
-        y = np.copy(x)
-        y[N-1:] = np.convolve(x, np.ones((N, )) / N, mode='valid')
+def train(env, agent, n_episodes=1000, max_steps=1000, eps_start=1.0, eps_end=0.1, eps_decay=0.995, target=200, chkpt=False):
+    score_hist = []
+    epsilon = eps_start
+
+    bar_format = '{l_bar}{bar:10}| {n:4}/{total_fmt} [{elapsed:>7}<{remaining:>7}, {rate_fmt}{postfix}]'
+    # bar_format = '{l_bar}{bar:10}{r_bar}'
+    pbar = trange(n_episodes, unit="ep", bar_format=bar_format, ascii=True)
+    for idx_epi in pbar:
+        state = env.reset()
+        score = 0
+        for idx_step in range(max_steps):
+            action = agent.choose_action(state, epsilon)
+            next_state, reward, done, _, _ = env.step(action)
+            agent.save2memory(state, action, reward, next_state, done)
+            state = next_state
+            score += reward
+
+            if done:
+                break
+
+        score_hist.append(score)
+        score_avg = np.mean(score_hist[-100:])
+        epsilon = max(eps_end, epsilon*eps_decay)
+
+        pbar.set_postfix_str(f"Score: {score: 7.2f}, 100 score avg: {score_avg: 7.2f}")
+        pbar.update(0)
+
+        # if (idx_epi+1) % 100 == 0:
+        #     print(" ")
+        #     sleep(0.1)
+
+        # Early stop
+        if len(score_hist) >= 100:
+            if score_avg >= target:
+                break
+
+    if (idx_epi+1) < n_episodes:
+        print("\nTarget Reached!")
     else:
-        y = np.zeros_like(x)
-    return y
+        print("\nDone!")
+        
+    if chkpt:
+        torch.save(agent.net_eval.state_dict(), 'checkpoint.pth')
 
-# Import and initialize the discrete Lunar Laner Environment
-env = gym.make('LunarLander-v2')
-env.reset()
+    return score_hist
 
-# Parameters
-N_episodes = 100                             # Number of episodes
-discount_factor = 0.95                       # Value of the discount factor
-n_ep_running_average = 50                    # Running average of 50 episodes
-n_actions = env.action_space.n               # Number of available actions
-dim_state = len(env.observation_space.high)  # State dimensionality
 
-# We will use these variables to compute the average episodic reward and
-# the average number of steps per episode
-episode_reward_list = []       # this list contains the total reward per episode
-episode_number_of_steps = []   # this list contains the number of steps per episode
 
-# Random agent initialization
-agent = RandomAgent(n_actions)
 
-### Training process
-
-# trange is an alternative to range in python, from the tqdm library
-# It shows a nice progression bar that you can update with useful information
-EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
-
-for i in EPISODES:
-    # Reset enviroment data and initialize variables
-    done = False
-    state = env.reset()
-    total_episode_reward = 0.
-    t = 0
-    while not done:
-        # Take a random action
-        action = agent.forward(state)
-
-        # Get next state and reward.  The done variable
-        # will be True if you reached the goal position,
-        # False otherwise
-        next_state, reward, done, _ = env.step(action)
-
-        # Update episode reward
-        total_episode_reward += reward
-
-        # Update state for next iteration
-        state = next_state
-        t+= 1
-
-    # Append episode reward and total number of steps
-    episode_reward_list.append(total_episode_reward)
-    episode_number_of_steps.append(t)
-
-    # Close environment
+def testLander(env, agent, loop=3):
+    for i in range(loop):
+        state = env.reset()
+        for idx_step in range(500):
+            action = agent.choose_action(state, epsilon=0)
+            env.render()
+            state, reward, done, _, _ = env.step(action)
+            if done:
+                break
     env.close()
+    
+def plotScore(scores):
+    plt.figure()
+    plt.plot(scores)
+    plt.title("Score History")
+    plt.xlabel("Episodes")
+    plt.show()
 
-    # Updates the tqdm update bar with fresh information
-    # (episode number, total reward of the last episode, total number of Steps
-    # of the last episode, average reward, average number of steps)
-    EPISODES.set_description(
-        "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{}".format(
-        i, total_episode_reward, t,
-        running_average(episode_reward_list, n_ep_running_average)[-1],
-        running_average(episode_number_of_steps, n_ep_running_average)[-1]))
+BATCH_SIZE = 128
+LR = 1e-3
+EPISODES = 500
+TARGET_SCORE = 250.     # early training stop at avg score of last 100 episodes
+GAMMA = 0.99            # discount factor
+MEMORY_SIZE = 10000     # max memory buffer size
+LEARN_STEP = 5          # how often to learn
+TAU = 1e-3              # for soft update of target parameters
+SAVE_CHKPT = False      # save trained network .pth file
 
-
-# Plot Rewards and steps
-fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
-ax[0].plot([i for i in range(1, N_episodes+1)], episode_reward_list, label='Episode reward')
-ax[0].plot([i for i in range(1, N_episodes+1)], running_average(
-    episode_reward_list, n_ep_running_average), label='Avg. episode reward')
-ax[0].set_xlabel('Episodes')
-ax[0].set_ylabel('Total reward')
-ax[0].set_title('Total Reward vs Episodes')
-ax[0].legend()
-ax[0].grid(alpha=0.3)
-
-ax[1].plot([i for i in range(1, N_episodes+1)], episode_number_of_steps, label='Steps per episode')
-ax[1].plot([i for i in range(1, N_episodes+1)], running_average(
-    episode_number_of_steps, n_ep_running_average), label='Avg. number of steps per episode')
-ax[1].set_xlabel('Episodes')
-ax[1].set_ylabel('Total number of steps')
-ax[1].set_title('Total number of steps vs Episodes')
-ax[1].legend()
-ax[1].grid(alpha=0.3)
-plt.show()
+env = gym.make('LunarLander-v2')
+num_states = env.observation_space.shape[0]
+num_actions = env.action_space.n
+agent = Agent(
+    n_states = num_states,
+    n_actions = num_actions,
+    batch_size = BATCH_SIZE,
+    lr = LR,
+    gamma = GAMMA,
+    buffer_size = MEMORY_SIZE,
+    learn_step = LEARN_STEP,
+    tau = TAU,
+    )
+score_hist = train(env, agent, n_episodes=EPISODES, target=TARGET_SCORE, chkpt=SAVE_CHKPT)
+plotScore(score_hist)
