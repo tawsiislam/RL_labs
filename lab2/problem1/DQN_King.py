@@ -60,7 +60,7 @@ class DQN():
         if random.random() < epsilon:
             action = random.choice(np.arange(self.n_actions))
         else:
-            action = np.argmax(action_values.cpu().data.numpy())
+            action = np.argmax(action_values.data.numpy())
 
         return action
 
@@ -155,7 +155,8 @@ def train(env, agent, n_episodes=2000, max_steps=1000, eps_start=1.0, eps_end=0.
         score = 0
         for idx_step in range(max_steps):
             action = agent.getAction(state, epsilon)
-            next_state, reward, done, _ , _= env.step(action)
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            done = truncated or terminated
             agent.save2memory(state, action, reward, next_state, done)
             state = next_state
             score += reward
@@ -209,21 +210,20 @@ def plotScore(scores):
 
 
 # Hyperparameters
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 LR = 1e-4
-EPISODES = 5000
+EPISODES = 1000
 TARGET_SCORE = 250     # early training stop at avg score of last 100 episodes
-GAMMA = 1            # discount factor
-MEMORY_SIZE = 10000     # max memory buffer size
-LEARN_STEP = 10          # how often to learn
+GAMMA = 0.99            # discount factor
+MEMORY_SIZE = 30000     # max memory buffer size
+LEARN_STEP = 2       # how often to learn
 TAU = 1e-3              # for soft update of target parameters
 SAVE_CHKPT = False      # save trained network .pth file
 
-# Environment setup
+# Environment setup 
 env = gym.make('LunarLander-v2')
 num_states = env.observation_space.shape[0]
 num_actions = env.action_space.n
-print(num_actions)
 
 # DQN Agent
 agent = DQN(
