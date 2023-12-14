@@ -5,10 +5,10 @@ import numpy as np
 
 
 class ReplayMemory:
-    def __init__(self, buffer_size, batch_size, seed):
+    def __init__(self, memory_size, batch_size, seed):
         self.batch_size = batch_size
         self.seed = random.seed(seed)
-        self.memory = deque(maxlen=buffer_size)
+        self.memory = deque(maxlen=memory_size)
         self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done"])
 
     def add(self, state, action, reward, next_state, done):
