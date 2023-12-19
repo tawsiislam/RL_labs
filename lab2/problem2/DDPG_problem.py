@@ -37,7 +37,7 @@ def running_average(x, N):
 
 def train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, batchSize, buffer_size, tau, d, mu, sigma):
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("Running on ",dev)
+    print("Running on",dev)
     
     # Import and initialize Mountain Car Environment
     env = gym.make('LunarLanderContinuous-v2')
@@ -55,9 +55,15 @@ def train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, batc
     randomAgent = RandomAgent(actionSize)
 
     # Buffer initialization
-    seed = 0
-    buffer = ReplayMemory(buffer_size, batch_size, seed)
-    buffer = run_buffer(env, randomAgent, buffer, buffer_size)
+    buffer = ReplayMemory(buffer_size, batch_size)
+    while len(buffer) < buffer_size: # Adding random experiences to the buffer
+        done = False
+        state = env.reset()
+        while not done:
+            action = randomAgent.forward(state)
+            next_state, reward, done, _ = env.step(action)
+            buffer.add(state, action, reward, next_state, done)
+            state = next_state
     
     # Our agent
     agent = DDPGAgent(dev, stateSize, actionSize, batchSize, actorLrate, criticLrate, mu, sigma, gamma)
@@ -78,12 +84,12 @@ def train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, batc
             # will be True if you reached the goal position,
             # False otherwise
             next_state, reward, done, _ = env.step(action)
-            buffer.add(state, action, reward, next_state, done)
+            buffer.add(state, action, reward, next_state, done) # Add new experience to the buffer
             
-            if len(buffer) > batch_size: # More training if buffer_size < batch_size
-                agent.backwardCritic(buffer)
+            if len(buffer) > batch_size: 
+                agent.backwardCritic(buffer) # Update critic every time
                 if t % d == 0:
-                    agent.backwardActor(buffer)
+                    agent.backwardActor(buffer) # Update actor every d steps
                     agent.ActorTarget = soft_updates(agent.ActorNet, agent.ActorTarget, tau)
                     agent.CriticTarget = soft_updates(agent.CriticNet, agent.CriticTarget, tau)
             # Update episode reward
@@ -109,24 +115,13 @@ def train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, batc
             running_average(episode_number_of_steps, n_ep_running_average)[-1]))
         
     draw_plots(N_episodes, episode_reward_list, n_ep_running_average, episode_number_of_steps)
-    CriticNetName = 'main_critic.pth'
-    CriticTargetName = 'target_critic.pth'
-    ActorNetName = 'main_actor.pth'
-    ActorTargetName = 'target_actor.pth'
+    CriticNetName = 'CriticNet.pth'
+    CriticTargetName = 'CriticTarget.pth'
+    ActorNetName = 'ActorNet.pth'
+    ActorTargetName = 'ActorTarget.pth'
 
     agent.saveModel(agent.ActorNet,agent.ActorTarget,fileName_main=ActorNetName,fileName_target=ActorTargetName)
     agent.saveModel(agent.CriticNet,agent.CriticTarget,fileName_main=CriticNetName,fileName_target=CriticTargetName)
-
-def run_buffer(env, agent, buffer, buffer_size):
-    while len(buffer) < buffer_size:
-        done = False
-        state = env.reset()
-        while not done:
-            action = agent.forward(state)
-            next_state, reward, done, _ = env.step(action)
-            buffer.add(state, action, reward, next_state, done)
-            state = next_state
-    return buffer
 
 def draw_plots(N_episodes, episode_reward_list, n_ep_running_average, episode_number_of_steps):
     # Plot Rewards and steps
