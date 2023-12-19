@@ -18,7 +18,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import ReplayMemory
 
 
 class Agent(object):
@@ -117,18 +116,18 @@ class CriticNetwork(nn.Module):
         return output
     
 class DDPGAgent(object):
-    def __init__(self, dev, stateSize, actionSize, batchSize, actorLrate, criticLrate, mu, sigma, tau, gamma):
+    def __init__(self, dev, stateSize, actionSize, batchSize, actorLrate, criticLrate, mu, sigma, gamma):
         self.dev = dev
         self.stateSize = stateSize
         self.actionSize = actionSize
         self.batchSize = batchSize
         self.actorLrate = actorLrate
         self.criticLrate = criticLrate
+        self.gamma = gamma
         self.mu = mu
         self.sigma = sigma
         self.oldNoise = np.array([0,0])
-        self.tau = tau # Used for soft_update
-        self.gamma = gamma
+        
         
         criticOutSize = 1
         self.CriticNet = CriticNetwork(self.dev, self.stateSize, criticOutSize, self.actionSize)
@@ -172,7 +171,7 @@ class DDPGAgent(object):
         self.OptimCritic.step()
         
     def backwardActor(self, bufferExperiences):
-        states, actions, rewards, nextStates, dones = bufferExperiences.sample()
+        states, actions, _, _, _ = bufferExperiences.sample()
         
         self.OptimActor.zero_grad()
         states = torch.tensor(states, device=self.dev,requires_grad=True, dtype=torch.float32)

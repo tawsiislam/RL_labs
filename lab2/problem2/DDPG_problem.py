@@ -35,7 +35,7 @@ def running_average(x, N):
         y = np.zeros_like(x)
     return y
 
-def train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, memory_size, batchSize, buffer_size, tau, d, mu, sigma):
+def train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, batchSize, buffer_size, tau, d, mu, sigma):
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Running on ",dev)
     
@@ -56,11 +56,11 @@ def train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, memo
 
     # Buffer initialization
     seed = 0
-    buffer = ReplayMemory(memory_size, batch_size, seed)
+    buffer = ReplayMemory(buffer_size, batch_size, seed)
     buffer = run_buffer(env, randomAgent, buffer, buffer_size)
     
     # Our agent
-    agent = DDPGAgent(dev, stateSize, actionSize, batchSize, actorLrate, criticLrate, mu, sigma, tau, gamma)
+    agent = DDPGAgent(dev, stateSize, actionSize, batchSize, actorLrate, criticLrate, mu, sigma, gamma)
     # Training process
     EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
 
@@ -80,7 +80,7 @@ def train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, memo
             next_state, reward, done, _ = env.step(action)
             buffer.add(state, action, reward, next_state, done)
             
-            if len(buffer) > batch_size:
+            if len(buffer) > batch_size: # More training if buffer_size < batch_size
                 agent.backwardCritic(buffer)
                 if t % d == 0:
                     agent.backwardActor(buffer)
@@ -121,7 +121,7 @@ def run_buffer(env, agent, buffer, buffer_size):
     while len(buffer) < buffer_size:
         done = False
         state = env.reset()
-        while done == False:
+        while not done:
             action = agent.forward(state)
             next_state, reward, done, _ = env.step(action)
             buffer.add(state, action, reward, next_state, done)
@@ -160,7 +160,6 @@ if __name__ == "__main__":
     gamma = 0.99                   # Discount factor
     actorLrate = 5e-5
     criticLrate = 5e-4
-    memory_size = int(1e5)         # memory size
     batch_size = 64                # 64
     buffer_size = 30000            # 30000
     tau = 0.001                    # Soft update parameter
@@ -172,4 +171,4 @@ if __name__ == "__main__":
     training = True
     print("Starting the script") 
     if training:
-        train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, memory_size, batch_size, buffer_size, tau, d, mu, sigma)
+        train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, batch_size, buffer_size, tau, d, mu, sigma)
