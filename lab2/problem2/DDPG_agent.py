@@ -62,7 +62,7 @@ class RandomAgent(Agent):
 class ActorNetwork(nn.Module):
     """ Feedforward actor network designed according to problem instructions"""
     def __init__(self, dev, inputSize, outputSize):
-        super.__init__()
+        super().__init__()
         
         layer1Size = 400
         layer2Size = 200
@@ -91,7 +91,7 @@ class ActorNetwork(nn.Module):
 class CriticNetwork(nn.Module):
     """ Feedforward critic network designed according to problem instructions"""
     def __init__(self, dev, inputSize, outputSize, actionSize):
-        super.__init__()
+        super().__init__()
         
         layer1Size = 400
         layer2Size = 200
@@ -126,17 +126,20 @@ class DDPGAgent(object):
         self.criticLrate = criticLrate
         self.mu = mu
         self.sigma = sigma
+        self.oldNoise = np.array([0,0])
         self.tau = tau # Used for soft_update
         self.gamma = gamma
         
-        self.CriticNet = CriticNetwork(self.dev, self.stateSize, self.actionSize)
-        self.CriticTarget = CriticNetwork(self.dev, stateSize, actionSize)
+        criticOutSize = 1
+        self.CriticNet = CriticNetwork(self.dev, self.stateSize, criticOutSize, self.actionSize)
+        self.CriticTarget = CriticNetwork(self.dev, self.stateSize, criticOutSize, self.actionSize)
         
-        self.ActorNet = ActorNetwork(self.dev, stateSize)
-        self.ActorTarget = ActorNetwork(self.dev, stateSize)
+        actorOutSize = 2
+        self.ActorNet = ActorNetwork(self.dev, self.stateSize, actorOutSize)
+        self.ActorTarget = ActorNetwork(self.dev, self.stateSize, actorOutSize)
         
-        self.OptimCritic = optim.adam(self.CriticNet.parameters(), lr = self.criticLrate)
-        self.OptimActor = optim.adam(self.ActorNet.parameters(), lr = self.actorLrate)
+        self.OptimCritic = optim.Adam(self.CriticNet.parameters(), lr = self.criticLrate)
+        self.OptimActor = optim.Adam(self.ActorNet.parameters(), lr = self.actorLrate)
         
     def forward(self, state: np.ndarray):
         w = np.random.normal(0, self.sigma, size=2)
@@ -147,9 +150,9 @@ class DDPGAgent(object):
         return a
     
     def backwardCritic(self, bufferExperiences):
-        states, actions, rewards, nextStates, dones = bufferExperiences
+        states, actions, rewards, nextStates, dones = bufferExperiences.sample()
         
-        self.OptimCritic.zero_gradients()
+        self.OptimCritic.zero_grad()
         
         with torch.no_grad():
             targetNextAction = self.ActorTarget.forward(torch.tensor(nextStates, device=self.dev))
@@ -169,12 +172,12 @@ class DDPGAgent(object):
         self.OptimCritic.step()
         
     def backwardActor(self, bufferExperiences):
-        states, actions, rewards, nextStates, dones = bufferExperiences
+        states, actions, rewards, nextStates, dones = bufferExperiences.sample()
         
         self.OptimActor.zero_grad()
         states = torch.tensor(states, device=self.dev,requires_grad=True, dtype=torch.float32)
         actions = self.ActorNet.forward(states)
-        Qvalues = self.ActorNet.forward(states,actions).squeeze()
+        Qvalues = self.CriticNet.forward(states,actions).squeeze()
         
         loss = -torch.mean(Qvalues)
         loss.backward()
