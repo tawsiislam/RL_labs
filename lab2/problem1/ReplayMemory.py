@@ -1,3 +1,4 @@
+# Written by Guanyu Lin - guanyul@kth.se, and Tawsiful Islam - tawsiful@kth.se
 import random
 from collections import deque, namedtuple
 import torch

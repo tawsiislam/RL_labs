@@ -1,3 +1,4 @@
+# Written by Guanyu Lin - guanyul@kth.se, and Tawsiful Islam - tawsiful@kth.se
 import torch.nn as nn
 import torch.nn.functional as F
 
