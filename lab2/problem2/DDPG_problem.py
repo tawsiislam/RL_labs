@@ -36,7 +36,7 @@ def running_average(x, N):
     return y
 
 def train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, memory_size, batchSize, buffer_size, tau, d, mu, sigma):
-    dev = torch.device("cude" if torch.cuda.is_available() else "cpu")
+    dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Running on ",dev)
     
     # Import and initialize Mountain Car Environment
