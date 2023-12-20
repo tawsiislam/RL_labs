@@ -86,12 +86,11 @@ def train(N_episodes, gamma, n_ep_running_average, actorLrate, criticLrate, batc
             next_state, reward, done, _ = env.step(action)
             buffer.add(state, action, reward, next_state, done) # Add new experience to the buffer
             
-            if len(buffer) > batch_size: 
-                agent.backwardCritic(buffer) # Update critic every time
-                if t % d == 0:
-                    agent.backwardActor(buffer) # Update actor every d steps
-                    agent.ActorTarget = soft_updates(agent.ActorNet, agent.ActorTarget, tau)
-                    agent.CriticTarget = soft_updates(agent.CriticNet, agent.CriticTarget, tau)
+            agent.backwardCritic(buffer) # Update critic every time
+            if t % d == 0:
+                agent.backwardActor(buffer) # Update actor every d steps
+                agent.ActorTarget = soft_updates(agent.ActorNet, agent.ActorTarget, tau)
+                agent.CriticTarget = soft_updates(agent.CriticNet, agent.CriticTarget, tau)
             # Update episode reward
             total_episode_reward += reward
 
@@ -143,13 +142,13 @@ def draw_plots(N_episodes, episode_reward_list, n_ep_running_average, episode_nu
     ax[1].set_title('Total number of steps vs Episodes')
     ax[1].legend()
     ax[1].grid(alpha=0.3)
-    plt.show()
+    plt.savefig("plot.png")
 
 
 
 if __name__ == "__main__":
     # Parameters
-    N_episodes = 300               # Number of episodes to run for training 300
+    N_episodes = 3               # Number of episodes to run for training 300
     discount_factor = 0.95         # Value of gamma
     n_ep_running_average = 50      # Running average of 50 episodes
     gamma = 0.99                   # Discount factor

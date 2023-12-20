@@ -126,7 +126,7 @@ class DDPGAgent(object):
         self.gamma = gamma
         self.mu = mu
         self.sigma = sigma
-        self.oldNoise = np.array([0,0])
+        self.noise = np.zeros(actionSize)
         
         
         criticOutSize = 1
@@ -141,10 +141,10 @@ class DDPGAgent(object):
         self.OptimActor = optim.Adam(self.ActorNet.parameters(), lr = self.actorLrate)
         
     def forward(self, state: np.ndarray):
+        """ Forward computations only done on Actor"""
         w = np.random.normal(0, self.sigma, size=2)
-        noise = -self.mu*self.oldNoise + w
-        a = self.ActorNet.forward(torch.tensor(state, device=self.dev)).detach().cpu().numpy() + noise
-        self.oldNoise = noise
+        noise = -self.mu*self.noise + w
+        a = self.ActorNet.forward(torch.tensor(state, device=self.dev,requires_grad=False)).cpu().detach().numpy() + noise
         a = np.clip(a,-1,1).reshape(-1)
         return a
     
@@ -166,7 +166,7 @@ class DDPGAgent(object):
         loss = nn.functional.mse_loss(Qvalues,yValue)
         loss.backward()
         
-        nn.utils.clip_grad_norm_(self.CriticNet.parameters(), max_norm=1.)
+        nn.utils.clip_grad_norm_(self.CriticNet.parameters(), max_norm=1)
         
         self.OptimCritic.step()
         
@@ -181,7 +181,7 @@ class DDPGAgent(object):
         loss = -torch.mean(Qvalues)
         loss.backward()
         
-        nn.utils.clip_grad_norm_(self.ActorNet.parameters(), max_norm=1.)
+        nn.utils.clip_grad_norm_(self.ActorNet.parameters(), max_norm=1)
         self.OptimActor.step()
 
     def saveModel(self, mainNet, targetNet, fileName_main='neural-network-main-2.pth',fileName_target='neural-network-target-2.pth'):
