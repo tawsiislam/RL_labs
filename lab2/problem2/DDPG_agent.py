@@ -20,20 +20,14 @@ import torch.nn as nn
 import torch.optim as optim
 
 
-class Agent(object):
-    ''' Base agent class
-
-        Args:
-            n_actions (int): actions dimensionality
-
-        Attributes:
-            n_actions (int): where we store the dimensionality of an action
+class LoadAgent(object):
+    ''' Agent class for existing .pth model 
     '''
     def __init__(self, actorNetwork):
         self.actor_network = torch.load(actorNetwork)
 
     def forward(self, state: np.ndarray):
-        ''' Performs a forward computation '''
+        ''' Performs a forward computation and outputs action according to its policy'''
         action = self.actor_network.forward(torch.tensor(state)).detach().numpy()
         return action
 
@@ -42,7 +36,7 @@ class Agent(object):
     #     pass
 
 
-class RandomAgent(Agent):
+class RandomAgent():
     ''' Agent taking actions uniformly at random, child of the class Agent'''
     def __init__(self, n_actions: int):
         # super(RandomAgent, self).__init__(n_actions)
