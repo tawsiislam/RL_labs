@@ -139,8 +139,8 @@ class PPOAgent_class(object):
     def forward(self, state: np.ndarray):
         """ Forward computations only done on Actor"""
         mean, var = self.ActorNet(torch.tensor(state, device=self.dev))
-        mean = mean.detach().numpy()
-        sigma = np.sqrt(var.detach().numpy())
+        mean = mean.detach().cpu().numpy()
+        sigma = np.sqrt(var.detach().cpu().numpy())
         action = np.random.normal(mean,sigma,size=(2,))
         action = np.clip(action,-1,1)
         return action
