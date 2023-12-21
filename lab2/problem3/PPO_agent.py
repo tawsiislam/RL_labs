@@ -71,7 +71,7 @@ class ActorNetwork(nn.Module):
         self.output_layer = nn.Linear(layer2Size, outputSize, device=dev)
         self.output_layer_activation = nn.Tanh()    #Keeps it between -1 and 1
         self.output_layer_var = nn.Linear(layer2Size, outputSize, device=dev)
-        self.output_layer_var_activation = nn.Sigmoid()    #Keeps it between -1 and 1
+        self.output_layer_var_activation = nn.Sigmoid()
         
     def forward(self, stateTensor: torch.tensor):
         layer1 = self.input_layer(stateTensor)
@@ -141,8 +141,10 @@ class PPOAgent_class(object):
         mean, var = self.ActorNet(torch.tensor(state, device=self.dev))
         mean = mean.detach().cpu().numpy()
         sigma = np.sqrt(var.detach().cpu().numpy())
-        action = np.random.normal(mean,sigma,size=(2,))
-        action = np.clip(action,-1,1)
+        # action = np.random.normal(mean,sigma,size=(2,))
+        action1 = np.random.normal(mean[0],sigma[0])
+        action2 = np.random.normal(mean[1],sigma[1])
+        action = np.clip([action1, action2],-1,1)
         return action
     
     def gauss_prob(self, mu, sigma, actions):
@@ -150,6 +152,24 @@ class PPOAgent_class(object):
         action2Prob = torch.pow(2 * np.pi * sigma[:, 1], -0.5) * torch.exp(-(actions[:, 1] - mu[:, 1]) ** 2 / (2 * sigma[:, 1]))
         return action1Prob * action2Prob
             
+    def agentUpdate(self, buffer, M_epochs):
+        # Calculate the target G_i in buffer
+        state, action, reward, next_state, done = buffer.unzip()
+        timeSteps = len(state)
+        G_i = np.zeros(timeSteps)
+        G_i[-1] = reward[-1]
+        for time in reversed(range(timeSteps-1)):
+            G_i[time]= G_i[time+1]*self.gamma+reward[time]
+        G_i = torch.tensor(G_i, dtype = torch.float32, device=self.dev)
+        
+        #Calculate old probabilities
+        meanOld, varOld = self.ActorNet(torch.tensor(state, requires_grad=True,device=self.dev))
+        probOld = self.gauss_prob(meanOld, varOld, torch.tensor(action, requires_grad=True, device=self.dev)).detach()
+        
+        #Update the actor and critic with same buffer over M epochs
+        for _ in range(M_epochs):
+            self.backwardCritic(buffer, G_i, state, action)
+            self.backwardActor(buffer, G_i, probOld, state, action)
     
     def backwardCritic(self, buffer, G_i: torch.tensor,states, actions):
         # states, actions, rewards, nextStates, dones = buffer.unzip()
@@ -173,7 +193,7 @@ class PPOAgent_class(object):
 
         self.OptimActor.zero_grad()
         
-        valueCritic = self.CriticNet(torch.tensor(states, device=self.dev)).squeeze()
+        valueCritic = self.CriticNet(torch.tensor(states, device=self.dev, requires_grad=False)).squeeze()
         advantage = G_i - valueCritic
         
         mu_new, var_new = self.ActorNet(torch.tensor(states,requires_grad=True, device=self.dev))
