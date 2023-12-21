@@ -93,11 +93,11 @@ def train(N_episodes, M_epochs, gamma, epsilon, n_ep_running_average, actorLrate
         G_i[-1] = reward[-1]
         for time in reversed(range(timeSteps-1)):
             G_i[time]= G_i[time+1]*gamma+reward[time]
-        G_i = torch.tensor(G_i, dtype = torch.float32)
+        G_i = torch.tensor(G_i, dtype = torch.float32, device=dev)
         
         #Calculate old probabilities
-        meanOld, varOld = PPOagent.ActorNet(torch.tensor(state, requires_grad=True))
-        probOld = PPOagent.gauss_prob(meanOld, varOld, torch.tensor(action, requires_grad=True)).detach()
+        meanOld, varOld = PPOagent.ActorNet(torch.tensor(state, requires_grad=True,device=dev))
+        probOld = PPOagent.gauss_prob(meanOld, varOld, torch.tensor(action, requires_grad=True, device=dev)).detach()
         
         #Update the actor and critic with same buffer over M epochs
         for epoch in range(M_epochs):

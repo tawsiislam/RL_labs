@@ -138,7 +138,7 @@ class PPOAgent_class(object):
         
     def forward(self, state: np.ndarray):
         """ Forward computations only done on Actor"""
-        mean, var = self.ActorNet(torch.tensor(state))
+        mean, var = self.ActorNet(torch.tensor(state, device=self.dev))
         mean = mean.detach().numpy()
         sigma = np.sqrt(var.detach().numpy())
         action = np.random.normal(mean,sigma,size=(2,))
@@ -153,8 +153,8 @@ class PPOAgent_class(object):
     
     def backwardCritic(self, buffer, G_i: torch.tensor):
         states, actions, rewards, nextStates, dones = buffer.unzip()
-        states = torch.tensor(states, requires_grad=True)
-        actions = torch.tensor(actions, requires_grad=True)
+        states = torch.tensor(states, requires_grad=True, device=self.dev)
+        actions = torch.tensor(actions, requires_grad=True, device=self.dev)
         self.OptimCritic.zero_grad()
         
         Values = self.CriticNet(states).squeeze()
@@ -173,11 +173,11 @@ class PPOAgent_class(object):
 
         self.OptimActor.zero_grad()
         
-        valueCritic = self.CriticNet(torch.tensor(states)).squeeze()
+        valueCritic = self.CriticNet(torch.tensor(states, device=self.dev)).squeeze()
         advantage = G_i - valueCritic
         
-        mu_new, var_new = self.ActorNet(torch.tensor(states,requires_grad=True))
-        probNew = self.gauss_prob(mu_new, var_new, torch.tensor(actions,requires_grad=True))
+        mu_new, var_new = self.ActorNet(torch.tensor(states,requires_grad=True, device=self.dev))
+        probNew = self.gauss_prob(mu_new, var_new, torch.tensor(actions,requires_grad=True, device=self.dev))
         ratio = probNew/probOld
         
         value1 = ratio*advantage
