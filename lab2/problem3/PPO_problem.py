@@ -101,8 +101,8 @@ def train(N_episodes, M_epochs, gamma, epsilon, n_ep_running_average, actorLrate
         
         #Update the actor and critic with same buffer over M epochs
         for epoch in range(M_epochs):
-            PPOagent.backwardCritic(buffer, G_i)
-            PPOagent.backwardActor(buffer, G_i, probOld)
+            PPOagent.backwardCritic(buffer, G_i, state, action)
+            PPOagent.backwardActor(buffer, G_i, probOld, state, action)
 
         # Updates the tqdm update bar with fresh information
         # (episode number, total reward of the last episode, total number of Steps
@@ -115,12 +115,10 @@ def train(N_episodes, M_epochs, gamma, epsilon, n_ep_running_average, actorLrate
         
     draw_plots(N_episodes, episode_reward_list, n_ep_running_average, episode_number_of_steps)
     CriticNetName = 'CriticNet.pth'
-    CriticTargetName = 'CriticTarget.pth'
     ActorNetName = 'ActorNet.pth'
-    ActorTargetName = 'ActorTarget.pth'
 
-    # agent.saveModel(agent.ActorNet,agent.ActorTarget,fileName_main=ActorNetName,fileName_target=ActorTargetName)
-    # agent.saveModel(agent.CriticNet,agent.CriticTarget,fileName_main=CriticNetName,fileName_target=CriticTargetName)
+    PPOagent.saveModel(PPOagent.ActorNet,fileName_main=ActorNetName)
+    PPOagent.saveModel(PPOagent.CriticNet,fileName_main=CriticNetName)
 
 def draw_plots(N_episodes, episode_reward_list, n_ep_running_average, episode_number_of_steps):
     # Plot Rewards and steps

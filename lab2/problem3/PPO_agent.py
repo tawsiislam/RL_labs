@@ -151,8 +151,8 @@ class PPOAgent_class(object):
         return action1Prob * action2Prob
             
     
-    def backwardCritic(self, buffer, G_i: torch.tensor):
-        states, actions, rewards, nextStates, dones = buffer.unzip()
+    def backwardCritic(self, buffer, G_i: torch.tensor,states, actions):
+        # states, actions, rewards, nextStates, dones = buffer.unzip()
         states = torch.tensor(states, requires_grad=True, device=self.dev)
         actions = torch.tensor(actions, requires_grad=True, device=self.dev)
         self.OptimCritic.zero_grad()
@@ -168,8 +168,8 @@ class PPOAgent_class(object):
         
         
         
-    def backwardActor(self, buffer, G_i: torch.tensor, probOld):
-        states, actions, _, _, _ = buffer.unzip()
+    def backwardActor(self, buffer, G_i: torch.tensor, probOld, states, actions):
+        # states, actions, _, _, _ = buffer.unzip()
 
         self.OptimActor.zero_grad()
         
@@ -189,7 +189,6 @@ class PPOAgent_class(object):
         self.OptimActor.step()
 
 
-    def saveModel(self, mainNet, targetNet, fileName_main='neural-network-main-3.pth',fileName_target='neural-network-target-3.pth'):
+    def saveModel(self, mainNet, fileName_main='neural-network-main-3.pth'):
         torch.save(mainNet, fileName_main)
-        torch.save(targetNet, fileName_target)
         print("Files saved successfully")
