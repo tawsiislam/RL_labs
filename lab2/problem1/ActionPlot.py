@@ -5,7 +5,7 @@ import torch
 import matplotlib.pyplot as plt
 
 # load 
-model = torch.load('BasicDQN.pth')
+model = torch.load('neural-network-1.pth')
 
 # setup environment
 height = np.linspace(0, 1.5, num=15)

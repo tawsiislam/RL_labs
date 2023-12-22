@@ -11,7 +11,7 @@ env.reset(seed=0)
     
 memory_size = int(1e5) # memory size
 batch_size = 64    # number of experiences to sample from memory
-gamma = 0.8   # discount factor
+gamma = 0.99   # discount factor
 tau = 1e-3              # soft update parameter, TAU = 0 for hard update
 LR = 1e-4               # learning rate
 update_intervall = 4        # how often to update Q network
