@@ -19,7 +19,7 @@ def running_average(x, N):
 
 # Load model
 try:
-    model = torch.load('BasicDQN.pth')
+    model = torch.load('neural-network-1.pth')
     print('Network model: {}'.format(model))
 except:
     print('File neural-network-1.pth not found!')
@@ -95,20 +95,22 @@ for i in EPISODES1:
 
     # Close environment
     env1.close()
-fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
-ax[0].plot([i for i in range(1, 51)], episode_reward_list, label='Episode reward')
-ax[0].set_xlabel('Episodes')
-ax[0].set_ylabel('Total reward')
-ax[0].set_title('Total Reward vs Episodes')
-ax[0].legend()
-ax[0].grid(alpha=0.3)
+fig, ax = plt.subplots(figsize=(16, 9))
 
-ax[1].plot([i for i in range(1, 51)], episode_reward_list1, label='Steps per episode')
-ax[1].set_xlabel('Episodes')
-ax[1].set_ylabel('Total number of steps')
-ax[1].set_title('Total number of steps vs Episodes')
-ax[1].legend()
-ax[1].grid(alpha=0.3)
+# Plot for Our Agent
+ax.plot([i for i in range(1, 51)], episode_reward_list, label='Our Agent - Episode reward')
+ax.set_xlabel('Episodes')
+ax.set_ylabel('Total reward')
+ax.set_title('Total Reward vs Episodes')
+
+# Plot for Random Agent
+ax.plot([i for i in range(1, 51)], episode_reward_list1, label='Random Agent - Episode reward')
+ax.set_ylabel('Total reward')
+ax.set_title('Total reward vs Episodes')
+
+ax.legend()
+ax.grid(alpha=0.3)
+
 plt.show()
 
 avg_reward = np.mean(episode_reward_list)
