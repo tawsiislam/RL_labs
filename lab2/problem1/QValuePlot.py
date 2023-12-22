@@ -10,19 +10,16 @@ model = torch.load('neural-network-1.pth')
 
 
 # setup limitations
-height = np.linspace(0, 1.5, num=10)
-angle = np.linspace(-np.pi, np.pi, num=10)
-q_values_list = np.zeros((10, 10))
+height = np.linspace(0, 1.5, num=100)
+angle = np.linspace(-np.pi, np.pi, num=100)
+q_values_list = np.zeros((100, 100))
 
-for i in range(10):
-    for j in range(10):
+for i in range(100):
+    for j in range(100):
         state = [0., height[i], 0., 0., angle[j], 0., 0., 0.]
         q_values = model(torch.tensor([state]).float())
         q_value, action = torch.max(q_values, axis=1)
         q_values_list[j,i] = q_value
-
-        j += 1
-    i += 1
 
 ## Plot
 fig = plt.figure()

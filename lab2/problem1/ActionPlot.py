@@ -34,7 +34,7 @@ ax.set_zlabel('action')
 ax.set_title('Optimal Action')
 ax.set_zticks([0, 1, 2, 3])
 ax.set_zlim(0, 3)
-ax.scatter(height, angle, actions_list, s=20)
+ax.plot_surface(height, angle, actions_list,rstride=1, cstride=1, cmap='viridis', edgecolor='none')
 
 
 plt.show()

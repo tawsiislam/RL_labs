@@ -21,7 +21,6 @@ import numpy as np
 import gym
 import torch
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from tqdm import trange
 from PPO_agent import *
 from  ReplayMemory import *
@@ -233,7 +232,7 @@ def draw_policy_plots(actorNetworkFile: str, CriticNetworkFile: str):
             Q_tab[angIdx, hIdx] = QNetwork.forward(torch.reshape(state, (1,-1))).item()
     fig1 = plt.figure()
     ax1 = fig1.gca(projection='3d')
-    ax1.plot_surface(Ang_mesh, H_mesh, Q_tab, cmap = mpl.cm.viridis)
+    ax1.plot_surface(Ang_mesh, H_mesh, Q_tab, cmap='viridis')
     ax1.view_init(10,70)
     ax1.set_ylabel("Height $y$")
     ax1.set_xlabel("Angle $\omega$")
@@ -243,7 +242,7 @@ def draw_policy_plots(actorNetworkFile: str, CriticNetworkFile: str):
     
     fig2 = plt.figure()
     ax2 = fig2.gca(projection='3d')
-    ax2.plot_surface(Ang_mesh, H_mesh, mu_tab, cmap = mpl.cm.viridis)
+    ax2.plot_surface(Ang_mesh, H_mesh, mu_tab, cmap='viridis')
     ax2.view_init(10,120)
     ax2.set_ylabel("Height $y$")
     ax2.set_xlabel("Angle $\omega$")

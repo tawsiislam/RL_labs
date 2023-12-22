@@ -1,4 +1,7 @@
-# Written by Guanyu Lin - guanyul@kth.se, and Tawsiful Islam - tawsiful@kth.se
+# Code written by
+# Guanyu Lin, guanyul@kth.se, 19980514-5035
+# Tawsiful Islam, tawsiful@kth.se, 20001110-2035
+
 import sys
 from tqdm import tqdm
 import numpy as np
