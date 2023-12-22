@@ -1,3 +1,4 @@
+# Written by Guanyu Lin - guanyul@kth.se, and Tawsiful Islam - tawsiful@kth.se
 import sys
 from tqdm import tqdm
 import numpy as np
