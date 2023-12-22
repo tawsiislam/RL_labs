@@ -28,7 +28,11 @@ class LoadAgent(object):
 
     def forward(self, state: np.ndarray):
         ''' Performs a forward computation and outputs action according to its policy'''
-        action = self.actor_network.forward(torch.tensor(state)).detach().numpy()
+        mean, var = self.actor_network(torch.tensor(state))
+        mean = mean.detach().cpu().numpy()
+        sigma = np.sqrt(var.detach().cpu().numpy())
+        action = np.random.normal(mean,sigma,size=(2,))
+        action = np.clip(action,-1,1)
         return action
 
     # def backward(self):
@@ -68,25 +72,27 @@ class ActorNetwork(nn.Module):
         self.hidden_layer_variance = nn.Linear(layer1Size, layer2Size, device=dev) # Calculate variance
         self.hidden_layer_variance_activation = nn.ReLU()
         
-        self.output_layer = nn.Linear(layer2Size, outputSize, device=dev)
-        self.output_layer_activation = nn.Tanh()    #Keeps it between -1 and 1
+        self.output_layer_mean = nn.Linear(layer2Size, outputSize, device=dev)
+        self.output_layer_mean_activation = nn.Tanh()    #Keeps it between -1 and 1
         self.output_layer_var = nn.Linear(layer2Size, outputSize, device=dev)
         self.output_layer_var_activation = nn.Sigmoid()
         
     def forward(self, stateTensor: torch.tensor):
         layer1 = self.input_layer(stateTensor)
         layer1Active = self.input_layer_activation(layer1)
-        
+
+        # HIDEN LAYER MEAN
         layer2_mean = self.hidden_layer_mean(layer1Active)
         layer2Active_mean = self.hidden_layer_mean_activation(layer2_mean)
+        output_mean = self.output_layer_mean(layer2Active_mean)
+        outputActive_mean = self.output_layer_mean_activation(output_mean)
+
+        # HIDEN LAYER VAR
         layer2_var = self.hidden_layer_variance(layer1Active)
         layer2Active_var = self.hidden_layer_variance_activation(layer2_var)
-        
-        output_mean = self.output_layer(layer2Active_mean)
-        outputActive_mean = self.output_layer_activation(output_mean)
-        output_var = self.output_layer(layer2Active_var)
-        outputActive_var = self.output_layer_activation(output_var)
-        
+        output_var = self.output_layer_var(layer2Active_var)
+        outputActive_var = self.output_layer_var_activation(output_var)
+
         return outputActive_mean, outputActive_var
     
 class CriticNetwork(nn.Module):
@@ -150,34 +156,13 @@ class PPOAgent_class(object):
     def gauss_prob(self, mu, sigma, actions):
         action1Prob = torch.pow(2 * np.pi * sigma[:, 0], -0.5) * torch.exp(-(actions[:, 0] - mu[:, 0]) ** 2 / (2 * sigma[:, 0]))
         action2Prob = torch.pow(2 * np.pi * sigma[:, 1], -0.5) * torch.exp(-(actions[:, 1] - mu[:, 1]) ** 2 / (2 * sigma[:, 1]))
-        return action1Prob * action2Prob
-            
-    def agentUpdate(self, buffer, M_epochs):
-        # Calculate the target G_i in buffer
-        state, action, reward, next_state, done = buffer.unzip()
-        timeSteps = len(state)
-        G_i = np.zeros(timeSteps)
-        G_i[-1] = reward[-1]
-        for time in reversed(range(timeSteps-1)):
-            G_i[time]= G_i[time+1]*self.gamma+reward[time]
-        G_i = torch.tensor(G_i, dtype = torch.float32, device=self.dev)
-        
-        #Calculate old probabilities
-        meanOld, varOld = self.ActorNet(torch.tensor(state, requires_grad=True,device=self.dev))
-        probOld = self.gauss_prob(meanOld, varOld, torch.tensor(action, requires_grad=True, device=self.dev)).detach()
-        
-        #Update the actor and critic with same buffer over M epochs
-        for _ in range(M_epochs):
-            self.backwardCritic(buffer, G_i, state, action)
-            self.backwardActor(buffer, G_i, probOld, state, action)
+        finalProb = action1Prob * action2Prob
+        return finalProb
     
-    def backwardCritic(self, buffer, G_i: torch.tensor,states, actions):
-        # states, actions, rewards, nextStates, dones = buffer.unzip()
-        states = torch.tensor(states, requires_grad=True, device=self.dev)
-        actions = torch.tensor(actions, requires_grad=True, device=self.dev)
+    def backwardCritic(self, G_i: torch.tensor,state_grad):
         self.OptimCritic.zero_grad()
-        
-        Values = self.CriticNet(states).squeeze()
+            
+        Values = self.CriticNet(state_grad).squeeze()
         
         loss = nn.functional.mse_loss(Values,G_i)
         loss.backward()
@@ -186,25 +171,21 @@ class PPOAgent_class(object):
         
         self.OptimCritic.step()
         
-        
-        
-    def backwardActor(self, buffer, G_i: torch.tensor, probOld, states, actions):
-        # states, actions, _, _, _ = buffer.unzip()
-
+    def backwardActor(self, G_i: torch.tensor, probOld, state, state_grad, action_grad):
+        # Action update
         self.OptimActor.zero_grad()
-        
-        valueCritic = self.CriticNet(torch.tensor(states, device=self.dev, requires_grad=False)).squeeze()
+        valueCritic = self.CriticNet(torch.tensor(state,requires_grad=False, device=self.dev)).squeeze()
         advantage = G_i - valueCritic
         
-        mu_new, var_new = self.ActorNet(torch.tensor(states,requires_grad=True, device=self.dev))
-        probNew = self.gauss_prob(mu_new, var_new, torch.tensor(actions,requires_grad=True, device=self.dev))
+        mu_new, var_new = self.ActorNet(state_grad)
+        probNew = self.gauss_prob(mu_new, var_new, action_grad)
         ratio = probNew/probOld
         
         value1 = ratio*advantage
         value2 = torch.clamp(ratio, 1-self.epsilon, 1+self.epsilon)*advantage
         loss = -torch.mean(torch.min(value1,value2))
         loss.backward()
-        
+    
         nn.utils.clip_grad_norm_(self.ActorNet.parameters(), max_norm=1)
         self.OptimActor.step()
 

@@ -72,13 +72,21 @@ def train(N_episodes, M_epochs, gamma, epsilon, n_ep_running_average, actorLrate
         buffer = ReplayMemory(buffer_size, batch_size)
     
         while not done:
-            action = PPOagent.forward(state)
+            # Take a random action
+            action = PPOagent.forward(state) #two dim: [main engine, fire left/right]
+
+            # Get next state and reward.  The done variable
+            # will be True if you reached the goal position,
+            # False otherwise
             next_state, reward, done, _ = env.step(action)
             buffer.add(state, action, reward, next_state, done)
+
             # Update episode reward
             total_episode_reward += reward
+
+            # Update state for next iteration
             state = next_state
-            t+=1
+            t+= 1
             
         # Append episode reward
         episode_reward_list.append(total_episode_reward)
@@ -86,7 +94,26 @@ def train(N_episodes, M_epochs, gamma, epsilon, n_ep_running_average, actorLrate
         # Close environment
         env.close()
         
-        PPOagent.agentUpdate(buffer, M_epochs)
+        # Calculate the target G_i in buffer
+        state, action, reward, next_state, done = buffer.unzip()
+        timeSteps = len(state)
+        G_i = np.zeros(timeSteps)
+        G_i[-1] = reward[-1]
+        for time in reversed(range(timeSteps-1)):
+            G_i[time]= G_i[time+1]*gamma+reward[time]
+        G_i = torch.tensor(G_i, dtype = torch.float32, device=dev)
+        
+        #Calculate old probabilities
+        state_grad = torch.tensor(state, requires_grad=True, device=dev)
+        action_grad = torch.tensor(action, requires_grad=True, device=dev)
+        meanOld, varOld = PPOagent.ActorNet(state_grad)
+        probOld = PPOagent.gauss_prob(meanOld, varOld, action_grad).detach()
+        
+        
+        #Update the actor and critic with same buffer over M epochs
+        for _ in range(M_epochs):
+            PPOagent.backwardCritic(G_i, state_grad)
+            PPOagent.backwardActor(G_i, probOld, state, state_grad, action_grad)
 
         # Updates the tqdm update bar with fresh information
         # (episode number, total reward of the last episode, total number of Steps
@@ -169,15 +196,15 @@ def agentVrandom(N_episodes,actorNetworkFile: str):
 
     # DQN agent initialization
     ddpg_agent = LoadAgent(actorNetworkFile)
-    DDPG_rewards_list = runAgent(env, ddpg_agent, N_episodes)
+    PPO_rewards_list = runAgent(env, ddpg_agent, N_episodes)
     
     fig = plt.figure(figsize=(9,9))
     episode_list = range(1,N_episodes+1)
     plt.plot(episode_list, random_rewards_list, label="Random Agent")
-    plt.plot(episode_list, DDPG_rewards_list, label="DDPG Agent")
+    plt.plot(episode_list, PPO_rewards_list, label="PPO Agent")
     plt.xlabel("Episodes")
     plt.ylabel("Reward")
-    plt.title("Rewards over Episodes between Random & DDPG Agent")
+    plt.title("Rewards over Episodes between Random & PPO Agent")
     plt.legend()
     plt.show()
 
@@ -192,44 +219,43 @@ def draw_policy_plots(actorNetworkFile: str, CriticNetworkFile: str):
     angle_vec = np.double(np.linspace(-np.pi, np.pi, no_ang))
     H_mesh, Ang_mesh = np.meshgrid(height_vec, angle_vec)
     Q_tab = np.zeros((no_h,no_ang))
-    action_tab = np.zeros((no_h,no_ang))
+    mu_tab = np.zeros((no_h,no_ang))
     
     for hIdx, height in enumerate(height_vec):
         for angIdx, angle in enumerate(angle_vec):
             state = torch.tensor((0,height,0,0,angle,0,0,0), dtype=torch.float32)
             # action = ActorNetwork.forward(state)
             action = ActorNetwork(state)
-            action_tab[angIdx, hIdx] = action[1].item()
-            Q_tab[angIdx, hIdx] = QNetwork.forward(torch.reshape(state, (1,-1)), torch.reshape(action, (1,-1))).item()
+            mu_tab[angIdx, hIdx] = action[0][1].item()
+            Q_tab[angIdx, hIdx] = QNetwork.forward(torch.reshape(state, (1,-1))).item()
     fig1 = plt.figure()
     ax1 = fig1.gca(projection='3d')
     ax1.plot_surface(Ang_mesh, H_mesh, Q_tab, cmap = mpl.cm.viridis)
     ax1.view_init(10,70)
     ax1.set_ylabel("Height $y$")
     ax1.set_xlabel("Angle $\omega$")
-    ax1.set_zlabel("Q-value")
-    plt.title("Plot of Q-value $Q_{\omega}(s(y,\omega),\pi_{\\theta}(s(y,\omega)))$")
+    ax1.set_zlabel("$V(s(y,\omega))$")
+    plt.title("Plot of V-value $V_{\omega}(s(y,\omega))$")
     # plt.savefig("QValue3d.png")
     
     fig2 = plt.figure()
     ax2 = fig2.gca(projection='3d')
-    ax2.plot_surface(Ang_mesh, H_mesh, action_tab, cmap = mpl.cm.viridis)
+    ax2.plot_surface(Ang_mesh, H_mesh, mu_tab, cmap = mpl.cm.viridis)
     ax2.view_init(10,120)
     ax2.set_ylabel("Height $y$")
     ax2.set_xlabel("Angle $\omega$")
-    ax2.set_zlabel("Best Action")
+    ax2.set_zlabel("\mu(s,\omega)")
     plt.title("Plot of best action $\pi_{\\theta}(s(y,\omega)))$")
     # plt.savefig("Action3d.png")
     plt.show()
 
 if __name__ == "__main__":
     # Parameters
-    N_episodes = 1600                 # Number of episodes to run for training 1600
+    N_episodes = 1600              # Number of episodes to run for training 1600
     n_ep_running_average = 50      # Running average of 50 episodes
     gamma = 0.99                   # Discount factor
-    actorLrate = 5e-5
-    criticLrate = 5e-3
-    batch_size = 64                # 64
+    actorLrate = 1e-5
+    criticLrate = 5e-4             # Critic LR changed
     buffer_size = 30000            # 30000
     M_epochs = 10                  # Epochs
     epsilon = 0.2
@@ -237,9 +263,9 @@ if __name__ == "__main__":
     ActorFile = "neural-network-3-actor.pth"
     CriticFile = "neural-network-3-critic.pth"
     
-    training = True
+    training = False
     plot = False
-    compare_plot = False
+    compare_plot = True
     print("Starting the script") 
     if training:
         train(N_episodes, M_epochs, gamma, epsilon, n_ep_running_average, actorLrate, criticLrate, buffer_size)
